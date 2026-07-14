@@ -30,6 +30,26 @@
     user-select: none;
   }
 
+  /* ---------- Background: map + wind particles ---------- */
+  #mapCanvas, #windCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  #mapCanvas { opacity: .28; filter: saturate(.5) brightness(.9); }
+  #windCanvas { opacity: .85; }
+  .bg-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 90% 55% at 50% 42%, rgba(7,21,35,.35), rgba(7,21,35,.78) 75%),
+      linear-gradient(to bottom, rgba(7,21,35,.85), transparent 20%, transparent 72%, rgba(7,21,35,.9));
+  }
+  header, main, .stats, .controls { position: relative; z-index: 2; }
+
   /* ---------- Header ---------- */
   header {
     display: flex;
@@ -38,11 +58,7 @@
     padding: 14px 18px 10px;
     border-bottom: 1px solid rgba(94,122,140,.25);
   }
-  .brand {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
   .brand h1 {
     font-size: 15px;
     font-weight: 800;
@@ -68,6 +84,8 @@
     border: 1px solid rgba(94,122,140,.35);
     border-radius: 999px;
     padding: 5px 10px;
+    background: rgba(7,21,35,.55);
+    backdrop-filter: blur(4px);
   }
   .gps-dot {
     width: 8px; height: 8px;
@@ -80,7 +98,7 @@
   .gps-pill.err .gps-dot { background: var(--signal); }
   .gps-pill.err { color: var(--signal); border-color: rgba(255,90,31,.4); }
 
-  /* ---------- Main dial ---------- */
+  /* ---------- Main ---------- */
   main {
     flex: 1;
     display: flex;
@@ -88,10 +106,6 @@
     align-items: center;
     justify-content: center;
     padding: 12px 18px;
-    position: relative;
-    background:
-      radial-gradient(ellipse 120% 60% at 50% 110%, rgba(94,122,140,.14), transparent 60%),
-      var(--deep);
   }
   .speed-block {
     text-align: center;
@@ -105,6 +119,7 @@
     line-height: .95;
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
+    text-shadow: 0 2px 24px rgba(7,21,35,.9), 0 0 60px rgba(7,21,35,.7);
   }
   .speed-value.stale { color: var(--slate); }
   .speed-unit {
@@ -118,75 +133,35 @@
     text-transform: uppercase;
     color: var(--signal);
     font-weight: 500;
+    text-shadow: 0 1px 10px rgba(7,21,35,.9);
   }
   .speed-unit small {
     font-size: 9px;
     color: var(--slate);
     letter-spacing: .12em;
   }
-
-  /* ---------- Wind strip ---------- */
-  .windstrip {
-    width: min(78vw, 420px);
-    margin-top: 22px;
-    text-align: center;
-  }
-  .wind-ticks {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    height: 26px;
-  }
-  .wind-ticks i {
-    width: 2px;
-    height: 10px;
-    background: rgba(94,122,140,.45);
-    border-radius: 1px;
-    transition: height .3s, background .3s;
-  }
-  .wind-ticks i.bow {
-    height: 22px;
-    width: 3px;
-    background: var(--foam);
-  }
-  .wind-ticks i.wind {
-    height: 20px;
-    background: var(--signal);
-    box-shadow: 0 0 6px rgba(255,90,31,.6);
-  }
-  .wind-ticks i.wind-soft {
-    height: 15px;
-    background: rgba(255,90,31,.55);
-  }
   .wind-label {
-    margin-top: 8px;
+    margin-top: 18px;
     font-family: 'Chivo Mono', monospace;
     font-size: 11px;
     letter-spacing: .16em;
     text-transform: uppercase;
     color: var(--slate);
+    text-shadow: 0 1px 8px rgba(7,21,35,.9);
+    text-align: center;
   }
-  .wind-label b { color: var(--signal); font-weight: 500; }
+  .wind-label b { color: var(--foam); font-weight: 500; }
+  .hint {
+    margin-top: 8px;
+    text-align: center;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--slate);
+    text-shadow: 0 1px 8px rgba(7,21,35,.9);
+  }
 
-  /* ---------- Wake bar (signature) ---------- */
-  .wake {
-    width: min(78vw, 420px);
-    height: 42px;
-    margin-top: 26px;
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-  }
-  .wake i {
-    flex: 1;
-    background: rgba(94,122,140,.28);
-    border-radius: 2px 2px 0 0;
-    min-height: 3px;
-    transition: height .4s ease, background .4s;
-  }
-  .wake i.hot { background: var(--signal); }
-
-  /* ---------- Stats row ---------- */
+  /* ---------- Stats ---------- */
   .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -195,7 +170,8 @@
     border-top: 1px solid rgba(94,122,140,.25);
   }
   .stat {
-    background: var(--navy);
+    background: rgba(11,29,46,.88);
+    backdrop-filter: blur(4px);
     padding: 14px 8px 16px;
     text-align: center;
   }
@@ -221,7 +197,8 @@
     display: flex;
     gap: 10px;
     padding: 14px 18px calc(16px + env(safe-area-inset-bottom));
-    background: var(--navy);
+    background: rgba(11,29,46,.92);
+    backdrop-filter: blur(4px);
   }
   button {
     font-family: 'Archivo', sans-serif;
@@ -237,12 +214,12 @@
   }
   button:active { transform: scale(.97); }
   button:focus-visible { outline: 3px solid var(--foam); outline-offset: 2px; }
-  #startBtn {
-    flex: 2;
-    background: var(--signal);
-    color: #fff;
+  #startBtn { flex: 2; background: var(--signal); color: #fff; }
+  #startBtn.running {
+    background: rgba(255,90,31,.15);
+    color: var(--signal);
+    border: 1px solid var(--signal);
   }
-  #startBtn.running { background: rgba(255,90,31,.15); color: var(--signal); border: 1px solid var(--signal); }
   #resetBtn {
     flex: 1;
     background: transparent;
@@ -250,23 +227,16 @@
     border: 1px solid rgba(94,122,140,.4);
   }
 
-  .hint {
-    position: absolute;
-    bottom: 10px;
-    left: 0; right: 0;
-    text-align: center;
-    font-family: 'Chivo Mono', monospace;
-    font-size: 10px;
-    letter-spacing: .1em;
-    color: var(--slate);
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .wake i, .gps-dot, button { transition: none; }
+    .gps-dot, button { transition: none; }
   }
 </style>
 </head>
 <body>
+
+<canvas id="mapCanvas"></canvas>
+<canvas id="windCanvas"></canvas>
+<div class="bg-vignette"></div>
 
 <header>
   <div class="brand">
@@ -287,11 +257,7 @@
       <small>· tocca per cambiare</small>
     </div>
   </div>
-  <div class="windstrip">
-    <div class="wind-ticks" id="windTicks" aria-hidden="true"></div>
-    <div class="wind-label" id="windLabel">vento: in attesa del GPS</div>
-  </div>
-  <div class="wake" id="wake" aria-hidden="true"></div>
+  <div class="wind-label" id="windLabel">vento: in attesa del GPS</div>
   <div class="hint" id="accHint"></div>
 </main>
 
@@ -316,77 +282,191 @@
   let unitIdx = 0;
   let watchId = null;
   let running = false;
-  let maxMs = 0;
-  let sumMs = 0, samples = 0;
-  let lastMs = 0;
+  let maxMs = 0, sumMs = 0, samples = 0, lastMs = 0;
   let lastFix = null;
   let wakeLock = null;
-  let windFrom = null;      // gradi da cui arriva il vento (0 = N)
-  let windKn = null;        // velocità vento in nodi
-  let lastHeading = null;   // ultima rotta valida
+  let windFrom = null;   // gradi di provenienza (0 = N)
+  let windKn = null;     // nodi
+  let lastHeading = null;
   let lastWindFetch = 0;
-  const history = new Array(40).fill(0);
+  let mapDrawnAt = null; // {lat, lon} dell'ultima mappa disegnata
 
   const $ = id => document.getElementById(id);
   const speedValue = $('speedValue'), unitLabel = $('unitLabel');
   const maxVal = $('maxVal'), avgVal = $('avgVal'), hdgVal = $('hdgVal');
   const gpsPill = $('gpsPill'), gpsLabel = $('gpsLabel');
   const startBtn = $('startBtn'), resetBtn = $('resetBtn');
-  const wake = $('wake'), accHint = $('accHint');
-
-  // build wake bars
-  for (let i = 0; i < 40; i++) {
-    const bar = document.createElement('i');
-    wake.appendChild(bar);
-  }
-  const bars = wake.children;
-
-  // build wind ticks: 37 lineette da -180° a +180° rispetto alla prua (centro)
-  const windTicksEl = $('windTicks'), windLabel = $('windLabel');
-  const N_TICKS = 37, CENTER = 18; // ogni tick = 10°
-  for (let i = 0; i < N_TICKS; i++) {
-    const t = document.createElement('i');
-    if (i === CENTER) t.classList.add('bow');
-    windTicksEl.appendChild(t);
-  }
-  const windTicks = windTicksEl.children;
+  const windLabel = $('windLabel'), accHint = $('accHint');
+  const mapCanvas = $('mapCanvas'), windCanvas = $('windCanvas');
+  const mapCtx = mapCanvas.getContext('2d');
+  const windCtx = windCanvas.getContext('2d');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const CARDINALI = ['N','NE','E','SE','S','SO','O','NO'];
-  function cardinale(deg) {
-    return CARDINALI[Math.round(deg / 45) % 8];
+  const cardinale = deg => CARDINALI[Math.round(deg / 45) % 8];
+
+  function fmt(ms) { return (ms * UNITS[unitIdx].factor).toFixed(1); }
+
+  function render() {
+    speedValue.textContent = fmt(lastMs);
+    maxVal.textContent = fmt(maxMs);
+    avgVal.textContent = samples ? fmt(sumMs / samples) : fmt(0);
+    unitLabel.textContent = UNITS[unitIdx].label;
   }
 
-  function renderWind() {
-    // pulizia
-    for (let i = 0; i < N_TICKS; i++) {
-      windTicks[i].classList.remove('wind', 'wind-soft');
-    }
+  function renderWindLabel() {
     if (windFrom == null) return;
-
-    const haveHeading = lastHeading != null;
-    // riferimento: prua se disponibile, altrimenti nord
-    const ref = haveHeading ? lastHeading : 0;
-    let rel = ((windFrom - ref + 540) % 360) - 180; // -180..+180
-    const idx = Math.max(0, Math.min(N_TICKS - 1, Math.round(rel / 10) + CENTER));
-    windTicks[idx].classList.add('wind');
-    if (idx > 0) windTicks[idx - 1].classList.add('wind-soft');
-    if (idx < N_TICKS - 1) windTicks[idx + 1].classList.add('wind-soft');
-
     const knTxt = windKn != null ? windKn.toFixed(0) + ' kn' : '';
-    if (haveHeading) {
+    let txt = 'vento <b>' + knTxt + '</b> da ' + cardinale(windFrom) + ' (' + Math.round(windFrom) + '°)';
+    if (lastHeading != null) {
+      const rel = ((windFrom - lastHeading + 540) % 360) - 180;
       const side = rel > 8 ? 'a dritta' : rel < -8 ? 'a sinistra' : 'in prua';
-      const off = Math.abs(Math.round(rel));
-      windLabel.innerHTML = 'vento <b>' + knTxt + '</b> · ' +
-        (side === 'in prua' ? 'in prua' : off + '° ' + side);
-    } else {
-      windLabel.innerHTML = 'vento <b>' + knTxt + '</b> da ' + cardinale(windFrom) +
-        ' (' + Math.round(windFrom) + '°) · centro = nord';
+      txt += ' · ' + (side === 'in prua' ? 'in prua' : Math.abs(Math.round(rel)) + '° ' + side);
+    }
+    windLabel.innerHTML = txt;
+  }
+
+  /* ================= CANVAS: dimensioni ================= */
+  function sizeCanvases() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (const c of [mapCanvas, windCanvas]) {
+      c.width = Math.round(innerWidth * dpr);
+      c.height = Math.round(innerHeight * dpr);
+    }
+    mapCtx.setTransform(1,0,0,1,0,0);
+    windCtx.setTransform(1,0,0,1,0,0);
+    initParticles();
+    if (mapDrawnAt) drawMap(mapDrawnAt.lat, mapDrawnAt.lon, true);
+  }
+  window.addEventListener('resize', sizeCanvases);
+
+  /* ================= MAPPA (OpenStreetMap) ================= */
+  const ZOOM = 12, TILE = 256;
+  function drawMap(lat, lon, force) {
+    // ridisegna solo se ci si è spostati di parecchio (~1 km) o su force
+    if (!force && mapDrawnAt) {
+      const dLat = Math.abs(lat - mapDrawnAt.lat), dLon = Math.abs(lon - mapDrawnAt.lon);
+      if (dLat < 0.01 && dLon < 0.01) return;
+    }
+    mapDrawnAt = { lat, lon };
+
+    const n = Math.pow(2, ZOOM);
+    const xt = (lon + 180) / 360 * n;
+    const latR = lat * Math.PI / 180;
+    const yt = (1 - Math.log(Math.tan(latR) + 1 / Math.cos(latR)) / Math.PI) / 2 * n;
+
+    const W = mapCanvas.width, H = mapCanvas.height;
+    const cx = W / 2, cy = H / 2;
+    const cols = Math.ceil(W / TILE / 2) + 1;
+    const rows = Math.ceil(H / TILE / 2) + 1;
+
+    mapCtx.fillStyle = '#071523';
+    mapCtx.fillRect(0, 0, W, H);
+
+    for (let dx = -cols; dx <= cols; dx++) {
+      for (let dy = -rows; dy <= rows; dy++) {
+        const tx = Math.floor(xt) + dx, ty = Math.floor(yt) + dy;
+        if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
+        const px = cx + (tx - xt) * TILE;
+        const py = cy + (ty - yt) * TILE;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => mapCtx.drawImage(img, Math.round(px), Math.round(py), TILE, TILE);
+        img.src = 'https://tile.openstreetmap.org/' + ZOOM + '/' + tx + '/' + ty + '.png';
+      }
+    }
+    // pin posizione
+    setTimeout(() => {
+      mapCtx.beginPath();
+      mapCtx.arc(cx, cy, 7, 0, Math.PI * 2);
+      mapCtx.fillStyle = '#FF5A1F';
+      mapCtx.fill();
+      mapCtx.lineWidth = 3;
+      mapCtx.strokeStyle = '#EFF6F4';
+      mapCtx.stroke();
+    }, 800);
+  }
+
+  /* ================= PARTICELLE DI VENTO ================= */
+  let particles = [];
+  const N_PART = 130;
+  function initParticles() {
+    particles = [];
+    for (let i = 0; i < N_PART; i++) particles.push(spawn());
+  }
+  function spawn() {
+    return {
+      x: Math.random() * windCanvas.width,
+      y: Math.random() * windCanvas.height,
+      life: 40 + Math.random() * 80
+    };
+  }
+
+  let rafId = null;
+  function animate() {
+    const W = windCanvas.width, H = windCanvas.height;
+    // dissolvenza scie
+    windCtx.globalCompositeOperation = 'destination-in';
+    windCtx.fillStyle = 'rgba(0,0,0,0.94)';
+    windCtx.fillRect(0, 0, W, H);
+    windCtx.globalCompositeOperation = 'source-over';
+
+    if (windFrom != null) {
+      // direzione verso cui soffia il vento (windFrom = provenienza)
+      const toRad = (windFrom + 180) * Math.PI / 180;
+      const spd = 0.4 + (windKn || 5) * 0.14; // px/frame scalati sui nodi
+      const vx = Math.sin(toRad) * spd;
+      const vy = -Math.cos(toRad) * spd;
+
+      windCtx.strokeStyle = 'rgba(239,246,244,0.75)';
+      windCtx.lineWidth = 1.4;
+      windCtx.lineCap = 'round';
+      windCtx.beginPath();
+      for (const p of particles) {
+        const nx = p.x + vx, ny = p.y + vy;
+        windCtx.moveTo(p.x, p.y);
+        windCtx.lineTo(nx, ny);
+        p.x = nx; p.y = ny;
+        p.life--;
+        if (p.life <= 0 || nx < -20 || ny < -20 || nx > W + 20 || ny > H + 20) {
+          Object.assign(p, spawn(), { life: 40 + Math.random() * 80 });
+        }
+      }
+      windCtx.stroke();
+    }
+    rafId = requestAnimationFrame(animate);
+  }
+
+  // Con reduced-motion: frecce statiche invece delle particelle animate
+  function drawStaticArrows() {
+    const W = windCanvas.width, H = windCanvas.height;
+    windCtx.clearRect(0, 0, W, H);
+    if (windFrom == null) return;
+    const toRad = (windFrom + 180) * Math.PI / 180;
+    const step = 90;
+    windCtx.strokeStyle = 'rgba(239,246,244,0.5)';
+    windCtx.lineWidth = 1.5;
+    for (let x = step / 2; x < W; x += step) {
+      for (let y = step / 2; y < H; y += step) {
+        const len = 18;
+        const ex = x + Math.sin(toRad) * len, ey = y - Math.cos(toRad) * len;
+        windCtx.beginPath();
+        windCtx.moveTo(x, y);
+        windCtx.lineTo(ex, ey);
+        // punta
+        const a = Math.atan2(ey - y, ex - x);
+        windCtx.lineTo(ex - 6 * Math.cos(a - 0.5), ey - 6 * Math.sin(a - 0.5));
+        windCtx.moveTo(ex, ey);
+        windCtx.lineTo(ex - 6 * Math.cos(a + 0.5), ey - 6 * Math.sin(a + 0.5));
+        windCtx.stroke();
+      }
     }
   }
 
+  /* ================= METEO (Open-Meteo) ================= */
   async function fetchWind(lat, lon) {
     const now = Date.now();
-    if (now - lastWindFetch < 10 * 60 * 1000) return; // max ogni 10 min
+    if (now - lastWindFetch < 10 * 60 * 1000) return;
     lastWindFetch = now;
     try {
       const r = await fetch(
@@ -398,32 +478,15 @@
       if (d && d.current) {
         windFrom = d.current.wind_direction_10m;
         windKn = d.current.wind_speed_10m;
-        renderWind();
+        renderWindLabel();
+        if (reducedMotion) drawStaticArrows();
       }
     } catch (_) {
       windLabel.textContent = 'vento: dati non disponibili offline';
     }
   }
 
-  function fmt(ms) {
-    return (ms * UNITS[unitIdx].factor).toFixed(1);
-  }
-
-  function render() {
-    speedValue.textContent = fmt(lastMs);
-    maxVal.textContent = fmt(maxMs);
-    avgVal.textContent = samples ? fmt(sumMs / samples) : fmt(0);
-    unitLabel.textContent = UNITS[unitIdx].label;
-    const peak = Math.max(maxMs, 0.51); // avoid div by ~0
-    for (let i = 0; i < bars.length; i++) {
-      const v = history[i];
-      const h = Math.max(3, Math.round((v / peak) * 42));
-      bars[i].style.height = h + 'px';
-      bars[i].classList.toggle('hot', v > 0 && v >= peak * 0.85);
-    }
-  }
-
-  // Speed fallback: compute from consecutive positions when coords.speed is null
+  /* ================= GPS ================= */
   function haversine(a, b) {
     const R = 6371000, rad = Math.PI / 180;
     const dLat = (b.latitude - a.latitude) * rad;
@@ -446,19 +509,20 @@
     }
     lastFix = { c: { latitude: c.latitude, longitude: c.longitude }, t: pos.timestamp };
     if (ms == null || ms < 0) ms = 0;
-    if (ms < 0.28) ms = 0; // ~0.55 kn deadband against GPS jitter at rest
+    if (ms < 0.28) ms = 0;
 
     lastMs = ms;
     if (ms > maxMs) maxMs = ms;
     if (ms > 0) { sumMs += ms; samples++; }
-    history.push(ms); history.shift();
 
     if (c.heading != null && !isNaN(c.heading) && ms > 0.5) {
       hdgVal.textContent = String(Math.round(c.heading)).padStart(3, '0');
       lastHeading = c.heading;
     }
+
+    drawMap(c.latitude, c.longitude, false);
     fetchWind(c.latitude, c.longitude);
-    renderWind();
+    renderWindLabel();
     speedValue.classList.remove('stale');
     render();
   }
@@ -471,10 +535,8 @@
 
   async function requestWakeLock() {
     try {
-      if ('wakeLock' in navigator) {
-        wakeLock = await navigator.wakeLock.request('screen');
-      }
-    } catch (_) { /* non critico */ }
+      if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    } catch (_) {}
   }
 
   function start() {
@@ -488,9 +550,7 @@
     startBtn.classList.add('running');
     gpsLabel.textContent = 'RICERCA…';
     watchId = navigator.geolocation.watchPosition(onFix, onErr, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 15000
+      enableHighAccuracy: true, maximumAge: 0, timeout: 15000
     });
     requestWakeLock();
   }
@@ -512,9 +572,8 @@
   resetBtn.addEventListener('click', () => {
     maxMs = 0; sumMs = 0; samples = 0; lastMs = 0; lastFix = null;
     lastHeading = null;
-    history.fill(0);
     hdgVal.textContent = '---';
-    renderWind();
+    renderWindLabel();
     render();
   });
 
@@ -528,7 +587,9 @@
     if (document.visibilityState === 'visible' && running) requestWakeLock();
   });
 
+  sizeCanvases();
   render();
+  if (!reducedMotion) animate();
 })();
 </script>
 </body>
