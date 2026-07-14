@@ -125,6 +125,49 @@
     letter-spacing: .12em;
   }
 
+  /* ---------- Wind strip ---------- */
+  .windstrip {
+    width: min(78vw, 420px);
+    margin-top: 22px;
+    text-align: center;
+  }
+  .wind-ticks {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 26px;
+  }
+  .wind-ticks i {
+    width: 2px;
+    height: 10px;
+    background: rgba(94,122,140,.45);
+    border-radius: 1px;
+    transition: height .3s, background .3s;
+  }
+  .wind-ticks i.bow {
+    height: 22px;
+    width: 3px;
+    background: var(--foam);
+  }
+  .wind-ticks i.wind {
+    height: 20px;
+    background: var(--signal);
+    box-shadow: 0 0 6px rgba(255,90,31,.6);
+  }
+  .wind-ticks i.wind-soft {
+    height: 15px;
+    background: rgba(255,90,31,.55);
+  }
+  .wind-label {
+    margin-top: 8px;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .wind-label b { color: var(--signal); font-weight: 500; }
+
   /* ---------- Wake bar (signature) ---------- */
   .wake {
     width: min(78vw, 420px);
@@ -244,6 +287,10 @@
       <small>· tocca per cambiare</small>
     </div>
   </div>
+  <div class="windstrip">
+    <div class="wind-ticks" id="windTicks" aria-hidden="true"></div>
+    <div class="wind-label" id="windLabel">vento: in attesa del GPS</div>
+  </div>
   <div class="wake" id="wake" aria-hidden="true"></div>
   <div class="hint" id="accHint"></div>
 </main>
@@ -274,6 +321,10 @@
   let lastMs = 0;
   let lastFix = null;
   let wakeLock = null;
+  let windFrom = null;      // gradi da cui arriva il vento (0 = N)
+  let windKn = null;        // velocità vento in nodi
+  let lastHeading = null;   // ultima rotta valida
+  let lastWindFetch = 0;
   const history = new Array(40).fill(0);
 
   const $ = id => document.getElementById(id);
@@ -289,6 +340,70 @@
     wake.appendChild(bar);
   }
   const bars = wake.children;
+
+  // build wind ticks: 37 lineette da -180° a +180° rispetto alla prua (centro)
+  const windTicksEl = $('windTicks'), windLabel = $('windLabel');
+  const N_TICKS = 37, CENTER = 18; // ogni tick = 10°
+  for (let i = 0; i < N_TICKS; i++) {
+    const t = document.createElement('i');
+    if (i === CENTER) t.classList.add('bow');
+    windTicksEl.appendChild(t);
+  }
+  const windTicks = windTicksEl.children;
+
+  const CARDINALI = ['N','NE','E','SE','S','SO','O','NO'];
+  function cardinale(deg) {
+    return CARDINALI[Math.round(deg / 45) % 8];
+  }
+
+  function renderWind() {
+    // pulizia
+    for (let i = 0; i < N_TICKS; i++) {
+      windTicks[i].classList.remove('wind', 'wind-soft');
+    }
+    if (windFrom == null) return;
+
+    const haveHeading = lastHeading != null;
+    // riferimento: prua se disponibile, altrimenti nord
+    const ref = haveHeading ? lastHeading : 0;
+    let rel = ((windFrom - ref + 540) % 360) - 180; // -180..+180
+    const idx = Math.max(0, Math.min(N_TICKS - 1, Math.round(rel / 10) + CENTER));
+    windTicks[idx].classList.add('wind');
+    if (idx > 0) windTicks[idx - 1].classList.add('wind-soft');
+    if (idx < N_TICKS - 1) windTicks[idx + 1].classList.add('wind-soft');
+
+    const knTxt = windKn != null ? windKn.toFixed(0) + ' kn' : '';
+    if (haveHeading) {
+      const side = rel > 8 ? 'a dritta' : rel < -8 ? 'a sinistra' : 'in prua';
+      const off = Math.abs(Math.round(rel));
+      windLabel.innerHTML = 'vento <b>' + knTxt + '</b> · ' +
+        (side === 'in prua' ? 'in prua' : off + '° ' + side);
+    } else {
+      windLabel.innerHTML = 'vento <b>' + knTxt + '</b> da ' + cardinale(windFrom) +
+        ' (' + Math.round(windFrom) + '°) · centro = nord';
+    }
+  }
+
+  async function fetchWind(lat, lon) {
+    const now = Date.now();
+    if (now - lastWindFetch < 10 * 60 * 1000) return; // max ogni 10 min
+    lastWindFetch = now;
+    try {
+      const r = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(3) +
+        '&longitude=' + lon.toFixed(3) +
+        '&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn'
+      );
+      const d = await r.json();
+      if (d && d.current) {
+        windFrom = d.current.wind_direction_10m;
+        windKn = d.current.wind_speed_10m;
+        renderWind();
+      }
+    } catch (_) {
+      windLabel.textContent = 'vento: dati non disponibili offline';
+    }
+  }
 
   function fmt(ms) {
     return (ms * UNITS[unitIdx].factor).toFixed(1);
@@ -340,7 +455,10 @@
 
     if (c.heading != null && !isNaN(c.heading) && ms > 0.5) {
       hdgVal.textContent = String(Math.round(c.heading)).padStart(3, '0');
+      lastHeading = c.heading;
     }
+    fetchWind(c.latitude, c.longitude);
+    renderWind();
     speedValue.classList.remove('stale');
     render();
   }
@@ -393,8 +511,10 @@
 
   resetBtn.addEventListener('click', () => {
     maxMs = 0; sumMs = 0; samples = 0; lastMs = 0; lastFix = null;
+    lastHeading = null;
     history.fill(0);
     hdgVal.textContent = '---';
+    renderWind();
     render();
   });
 
