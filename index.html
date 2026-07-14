@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SOG — Tachimetro Nautico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;500;700&family=Archivo:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1D2E;
+    --deep: #071523;
+    --foam: #EFF6F4;
+    --signal: #FF5A1F;
+    --slate: #5E7A8C;
+    --ok: #3ADFA0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--deep);
+    color: var(--foam);
+    font-family: 'Archivo', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid rgba(94,122,140,.25);
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .brand h1 {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .brand span {
+    font-family: 'Chivo Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .gps-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--slate);
+    border: 1px solid rgba(94,122,140,.35);
+    border-radius: 999px;
+    padding: 5px 10px;
+  }
+  .gps-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--slate);
+    transition: background .3s;
+  }
+  .gps-pill.live .gps-dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .gps-pill.live { color: var(--ok); border-color: rgba(58,223,160,.4); }
+  .gps-pill.err .gps-dot { background: var(--signal); }
+  .gps-pill.err { color: var(--signal); border-color: rgba(255,90,31,.4); }
+
+  /* ---------- Main dial ---------- */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    position: relative;
+    background:
+      radial-gradient(ellipse 120% 60% at 50% 110%, rgba(94,122,140,.14), transparent 60%),
+      var(--deep);
+  }
+  .speed-block {
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .speed-value {
+    font-family: 'Chivo Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(96px, 34vw, 180px);
+    line-height: .95;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .speed-value.stale { color: var(--slate); }
+  .speed-unit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 14px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--signal);
+    font-weight: 500;
+  }
+  .speed-unit small {
+    font-size: 9px;
+    color: var(--slate);
+    letter-spacing: .12em;
+  }
+
+  /* ---------- Wake bar (signature) ---------- */
+  .wake {
+    width: min(78vw, 420px);
+    height: 42px;
+    margin-top: 26px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .wake i {
+    flex: 1;
+    background: rgba(94,122,140,.28);
+    border-radius: 2px 2px 0 0;
+    min-height: 3px;
+    transition: height .4s ease, background .4s;
+  }
+  .wake i.hot { background: var(--signal); }
+
+  /* ---------- Stats row ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(94,122,140,.25);
+    border-top: 1px solid rgba(94,122,140,.25);
+  }
+  .stat {
+    background: var(--navy);
+    padding: 14px 8px 16px;
+    text-align: center;
+  }
+  .stat b {
+    display: block;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat span {
+    display: block;
+    margin-top: 4px;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 9px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  /* ---------- Controls ---------- */
+  .controls {
+    display: flex;
+    gap: 10px;
+    padding: 14px 18px calc(16px + env(safe-area-inset-bottom));
+    background: var(--navy);
+  }
+  button {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 12px;
+    padding: 16px 0;
+    cursor: pointer;
+    transition: transform .1s, opacity .2s;
+  }
+  button:active { transform: scale(.97); }
+  button:focus-visible { outline: 3px solid var(--foam); outline-offset: 2px; }
+  #startBtn {
+    flex: 2;
+    background: var(--signal);
+    color: #fff;
+  }
+  #startBtn.running { background: rgba(255,90,31,.15); color: var(--signal); border: 1px solid var(--signal); }
+  #resetBtn {
+    flex: 1;
+    background: transparent;
+    color: var(--slate);
+    border: 1px solid rgba(94,122,140,.4);
+  }
+
+  .hint {
+    position: absolute;
+    bottom: 10px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Chivo Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--slate);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wake i, .gps-dot, button { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>SOG</h1>
+    <span>speed over ground</span>
+  </div>
+  <div class="gps-pill" id="gpsPill">
+    <div class="gps-dot"></div>
+    <span id="gpsLabel">GPS OFF</span>
+  </div>
+</header>
+
+<main>
+  <div class="speed-block" id="speedBlock" role="button" tabindex="0" aria-label="Tocca per cambiare unità di misura">
+    <div class="speed-value stale" id="speedValue">0.0</div>
+    <div class="speed-unit">
+      <span id="unitLabel">NODI</span>
+      <small>· tocca per cambiare</small>
+    </div>
+  </div>
+  <div class="wake" id="wake" aria-hidden="true"></div>
+  <div class="hint" id="accHint"></div>
+</main>
+
+<div class="stats">
+  <div class="stat"><b id="maxVal">0.0</b><span>Max</span></div>
+  <div class="stat"><b id="avgVal">0.0</b><span>Media</span></div>
+  <div class="stat"><b id="hdgVal">---</b><span>Rotta °</span></div>
+</div>
+
+<div class="controls">
+  <button id="startBtn">Start</button>
+  <button id="resetBtn">Reset</button>
+</div>
+
+<script>
+(function () {
+  const UNITS = [
+    { key: 'kn',  label: 'NODI', factor: 1.943844 },
+    { key: 'kmh', label: 'KM/H', factor: 3.6 },
+    { key: 'mph', label: 'MPH',  factor: 2.236936 }
+  ];
+  let unitIdx = 0;
+  let watchId = null;
+  let running = false;
+  let maxMs = 0;
+  let sumMs = 0, samples = 0;
+  let lastMs = 0;
+  let lastFix = null;
+  let wakeLock = null;
+  const history = new Array(40).fill(0);
+
+  const $ = id => document.getElementById(id);
+  const speedValue = $('speedValue'), unitLabel = $('unitLabel');
+  const maxVal = $('maxVal'), avgVal = $('avgVal'), hdgVal = $('hdgVal');
+  const gpsPill = $('gpsPill'), gpsLabel = $('gpsLabel');
+  const startBtn = $('startBtn'), resetBtn = $('resetBtn');
+  const wake = $('wake'), accHint = $('accHint');
+
+  // build wake bars
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('i');
+    wake.appendChild(bar);
+  }
+  const bars = wake.children;
+
+  function fmt(ms) {
+    return (ms * UNITS[unitIdx].factor).toFixed(1);
+  }
+
+  function render() {
+    speedValue.textContent = fmt(lastMs);
+    maxVal.textContent = fmt(maxMs);
+    avgVal.textContent = samples ? fmt(sumMs / samples) : fmt(0);
+    unitLabel.textContent = UNITS[unitIdx].label;
+    const peak = Math.max(maxMs, 0.51); // avoid div by ~0
+    for (let i = 0; i < bars.length; i++) {
+      const v = history[i];
+      const h = Math.max(3, Math.round((v / peak) * 42));
+      bars[i].style.height = h + 'px';
+      bars[i].classList.toggle('hot', v > 0 && v >= peak * 0.85);
+    }
+  }
+
+  // Speed fallback: compute from consecutive positions when coords.speed is null
+  function haversine(a, b) {
+    const R = 6371000, rad = Math.PI / 180;
+    const dLat = (b.latitude - a.latitude) * rad;
+    const dLon = (b.longitude - a.longitude) * rad;
+    const s = Math.sin(dLat/2)**2 +
+      Math.cos(a.latitude*rad) * Math.cos(b.latitude*rad) * Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+
+  function onFix(pos) {
+    const c = pos.coords;
+    gpsPill.className = 'gps-pill live';
+    gpsLabel.textContent = 'GPS LIVE';
+    accHint.textContent = c.accuracy ? ('precisione ±' + Math.round(c.accuracy) + ' m') : '';
+
+    let ms = c.speed;
+    if (ms == null && lastFix) {
+      const dt = (pos.timestamp - lastFix.t) / 1000;
+      if (dt > 0.5) ms = haversine(lastFix.c, c) / dt;
+    }
+    lastFix = { c: { latitude: c.latitude, longitude: c.longitude }, t: pos.timestamp };
+    if (ms == null || ms < 0) ms = 0;
+    if (ms < 0.28) ms = 0; // ~0.55 kn deadband against GPS jitter at rest
+
+    lastMs = ms;
+    if (ms > maxMs) maxMs = ms;
+    if (ms > 0) { sumMs += ms; samples++; }
+    history.push(ms); history.shift();
+
+    if (c.heading != null && !isNaN(c.heading) && ms > 0.5) {
+      hdgVal.textContent = String(Math.round(c.heading)).padStart(3, '0');
+    }
+    speedValue.classList.remove('stale');
+    render();
+  }
+
+  function onErr(e) {
+    gpsPill.className = 'gps-pill err';
+    gpsLabel.textContent = e.code === 1 ? 'PERMESSO NEGATO' : 'NO SEGNALE';
+    speedValue.classList.add('stale');
+  }
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (_) { /* non critico */ }
+  }
+
+  function start() {
+    if (!('geolocation' in navigator)) {
+      gpsLabel.textContent = 'GPS NON DISPONIBILE';
+      gpsPill.className = 'gps-pill err';
+      return;
+    }
+    running = true;
+    startBtn.textContent = 'Stop';
+    startBtn.classList.add('running');
+    gpsLabel.textContent = 'RICERCA…';
+    watchId = navigator.geolocation.watchPosition(onFix, onErr, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 15000
+    });
+    requestWakeLock();
+  }
+
+  function stop() {
+    running = false;
+    if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
+    startBtn.textContent = 'Start';
+    startBtn.classList.remove('running');
+    gpsPill.className = 'gps-pill';
+    gpsLabel.textContent = 'GPS OFF';
+    speedValue.classList.add('stale');
+  }
+
+  startBtn.addEventListener('click', () => running ? stop() : start());
+
+  resetBtn.addEventListener('click', () => {
+    maxMs = 0; sumMs = 0; samples = 0; lastMs = 0; lastFix = null;
+    history.fill(0);
+    hdgVal.textContent = '---';
+    render();
+  });
+
+  function cycleUnit() { unitIdx = (unitIdx + 1) % UNITS.length; render(); }
+  $('speedBlock').addEventListener('click', cycleUnit);
+  $('speedBlock').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cycleUnit(); }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && running) requestWakeLock();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
