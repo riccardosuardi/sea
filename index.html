@@ -79,15 +79,15 @@
     height: 100%;
     pointer-events: none;
   }
-  #mapCanvas { opacity: .28; filter: saturate(.5) brightness(.9); }
+  #mapCanvas { opacity: .55; filter: saturate(.65) brightness(.95); }
   #windCanvas { opacity: .85; }
   .bg-vignette {
     position: fixed;
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 90% 55% at 50% 42%, rgba(7,21,35,.35), rgba(7,21,35,.78) 75%),
-      linear-gradient(to bottom, rgba(7,21,35,.85), transparent 20%, transparent 72%, rgba(7,21,35,.9));
+      radial-gradient(ellipse 90% 55% at 50% 42%, rgba(7,21,35,.15), rgba(7,21,35,.45) 80%),
+      linear-gradient(to bottom, rgba(7,21,35,.7), transparent 16%, transparent 78%, rgba(7,21,35,.75));
   }
   header, main, .stats, .controls { position: relative; z-index: 2; }
 
@@ -396,7 +396,7 @@
   window.addEventListener('resize', sizeCanvases);
 
   /* ================= MAPPA (OpenStreetMap) ================= */
-  const ZOOM = 12, TILE = 256;
+  const ZOOM = 13, TILE = 256;
   function drawMap(lat, lon, force) {
     // ridisegna solo se ci si è spostati di parecchio (~1 km) o su force
     if (!force && mapDrawnAt) {
