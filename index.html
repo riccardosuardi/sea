@@ -47,7 +47,7 @@
     color: #fff;
   }
   .brand img {
-    height: 34px;
+    height: 40px;
     display: none;
     background: #fff;
     border-radius: 8px;
@@ -55,7 +55,7 @@
   }
   body[data-theme="orza"] .brand img { display: block; }
   body[data-theme="orza"] .brand h1 { display: none; }
-  body[data-theme="orza"] .brand span::before { content: "orza · "; color: var(--signal); }
+  body[data-theme="orza"] .brand span { display: none; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
   body {
@@ -197,6 +197,37 @@
     text-align: center;
   }
   .wind-label b { color: var(--foam); font-weight: 500; }
+
+  /* ---------- Rosa dei venti ---------- */
+  .rose {
+    position: fixed;
+    top: 78px;
+    right: 10px;
+    width: 132px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .rose svg { width: 100%; height: auto; display: block; }
+  .rose circle.ring {
+    fill: color-mix(in srgb, var(--deep) 45%, transparent);
+    stroke: rgba(94,122,140,.5);
+    stroke-width: 1.5;
+  }
+  .rose line.spoke { stroke: rgba(94,122,140,.45); stroke-width: 1.5; }
+  .rose line.spoke.active { stroke: var(--signal); stroke-width: 3; }
+  .rose text {
+    font-family: 'Chivo Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .06em;
+    fill: var(--slate);
+    text-transform: uppercase;
+    paint-order: stroke;
+    stroke: rgba(7,21,35,.85);
+    stroke-width: 3px;
+  }
+  .rose text.active { fill: var(--signal); font-weight: 700; }
+  .rose #roseNeedle line { stroke: var(--signal); stroke-width: 3; stroke-linecap: round; }
+  .rose #roseNeedle polygon { fill: var(--signal); }
   .hint {
     margin-top: 8px;
     text-align: center;
@@ -206,6 +237,51 @@
     color: var(--slate);
     text-shadow: 0 1px 8px rgba(7,21,35,.9);
   }
+
+  /* ---------- Timeline vento ---------- */
+  .timeline {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    overflow-x: auto;
+    gap: 2px;
+    padding: 8px 10px;
+    background: color-mix(in srgb, var(--navy) 90%, transparent);
+    backdrop-filter: blur(4px);
+    border-top: 1px solid rgba(94,122,140,.25);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .timeline::-webkit-scrollbar { display: none; }
+  .tl-slot {
+    flex: 0 0 auto;
+    width: 52px;
+    text-align: center;
+    font-family: 'Chivo Mono', monospace;
+    padding: 4px 0 6px;
+    border-radius: 8px;
+  }
+  .tl-slot.now { background: rgba(94,122,140,.22); outline: 1px solid rgba(94,122,140,.45); }
+  .tl-day {
+    font-size: 8px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--signal);
+    height: 11px;
+    white-space: nowrap;
+  }
+  .tl-hour { font-size: 10px; color: var(--slate); }
+  .tl-arrow {
+    font-size: 15px;
+    line-height: 1.2;
+    color: var(--foam);
+    display: block;
+  }
+  .tl-kn { font-size: 12px; font-weight: 700; }
+  .tl-gust { font-size: 9px; opacity: .75; }
+  .tl-gust::before { content: "raff "; color: var(--slate); }
+  .tl-wave { font-size: 9px; color: #7FD4E8; }
+  .wind-label small { font-size: 9px; color: var(--slate); }
 
   /* ---------- Stats ---------- */
   .stats {
@@ -284,6 +360,25 @@
 <canvas id="windCanvas"></canvas>
 <div class="bg-vignette"></div>
 
+<div class="rose" aria-label="Rosa dei venti">
+  <svg viewBox="0 0 200 200">
+    <circle class="ring" cx="100" cy="100" r="64"/>
+    <g id="roseSpokes"></g>
+    <g id="roseNeedle" visibility="hidden">
+      <line x1="100" y1="44" x2="100" y2="124"/>
+      <polygon points="100,138 93,122 107,122"/>
+    </g>
+    <text id="rn0" x="100" y="20" text-anchor="middle">Tramontana</text>
+    <text id="rn1" x="152" y="48" text-anchor="middle">Grecale</text>
+    <text id="rn2" x="172" y="104" text-anchor="middle">Levante</text>
+    <text id="rn3" x="152" y="166" text-anchor="middle">Scirocco</text>
+    <text id="rn4" x="100" y="192" text-anchor="middle">Ostro</text>
+    <text id="rn5" x="48" y="166" text-anchor="middle">Libeccio</text>
+    <text id="rn6" x="28" y="104" text-anchor="middle">Ponente</text>
+    <text id="rn7" x="46" y="48" text-anchor="middle">Maestrale</text>
+  </svg>
+</div>
+
 <header>
   <div class="brand">
     <div class="brand-row">
@@ -316,6 +411,8 @@
   <div class="hint" id="accHint"></div>
 </main>
 
+<div class="timeline" id="timeline" aria-label="Previsione vento a slot di 2 ore"></div>
+
 <div class="stats">
   <div class="stat"><b id="maxVal">0.0</b><span>Max</span></div>
   <div class="stat"><b id="avgVal">0.0</b><span>Media</span></div>
@@ -342,6 +439,8 @@
   let wakeLock = null;
   let windFrom = null;   // gradi di provenienza (0 = N)
   let windKn = null;     // nodi
+  let windGust = null;   // raffica attuale in nodi
+  let waveNow = null;    // altezza onde attuale in metri
   let lastHeading = null;
   let lastWindFetch = 0;
   let mapDrawnAt = null; // {lat, lon} dell'ultima mappa disegnata
@@ -359,6 +458,35 @@
 
   const CARDINALI = ['N','NE','E','SE','S','SO','O','NO'];
   const cardinale = deg => CARDINALI[Math.round(deg / 45) % 8];
+  const VENTI = ['Tramontana','Grecale','Levante','Scirocco','Ostro','Libeccio','Ponente','Maestrale'];
+  const nomeVento = deg => VENTI[Math.round(deg / 45) % 8];
+
+  /* ---------- Rosa dei venti ---------- */
+  const roseSpokes = $('roseSpokes'), roseNeedle = $('roseNeedle');
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const spokeEls = [];
+  for (let i = 0; i < 8; i++) {
+    const a = i * 45 * Math.PI / 180;
+    const l = document.createElementNS(SVGNS, 'line');
+    l.setAttribute('x1', 100 + 22 * Math.sin(a));
+    l.setAttribute('y1', 100 - 22 * Math.cos(a));
+    l.setAttribute('x2', 100 + 64 * Math.sin(a));
+    l.setAttribute('y2', 100 - 64 * Math.cos(a));
+    l.setAttribute('class', 'spoke');
+    roseSpokes.appendChild(l);
+    spokeEls.push(l);
+  }
+  function renderRose() {
+    if (windFrom == null) return;
+    const oct = Math.round(windFrom / 45) % 8;
+    for (let i = 0; i < 8; i++) {
+      spokeEls[i].classList.toggle('active', i === oct);
+      const t = $('rn' + i);
+      if (t) t.classList.toggle('active', i === oct);
+    }
+    roseNeedle.setAttribute('visibility', 'visible');
+    roseNeedle.setAttribute('transform', 'rotate(' + Math.round(windFrom) + ' 100 100)');
+  }
 
   function fmt(ms) { return (ms * UNITS[unitIdx].factor).toFixed(1); }
 
@@ -372,13 +500,17 @@
   function renderWindLabel() {
     if (windFrom == null) return;
     const knTxt = windKn != null ? windKn.toFixed(0) + ' kn' : '';
-    let txt = 'vento <b>' + knTxt + '</b> da ' + cardinale(windFrom) + ' (' + Math.round(windFrom) + '°)';
+    let txt = '<b>' + nomeVento(windFrom) + '</b> ' + knTxt +
+      (windGust != null ? ' <small>(raff. ' + Math.round(windGust) + ')</small>' : '') +
+      ' · da ' + cardinale(windFrom) + ' (' + Math.round(windFrom) + '°)';
+    if (waveNow != null) txt += ' · onde ' + waveNow.toFixed(1).replace('.', ',') + ' m';
     if (lastHeading != null) {
       const rel = ((windFrom - lastHeading + 540) % 360) - 180;
       const side = rel > 8 ? 'a dritta' : rel < -8 ? 'a sinistra' : 'in prua';
       txt += ' · ' + (side === 'in prua' ? 'in prua' : Math.abs(Math.round(rel)) + '° ' + side);
     }
     windLabel.innerHTML = txt;
+    renderRose();
   }
 
   /* ================= CANVAS: dimensioni ================= */
@@ -520,23 +652,96 @@
   }
 
   /* ================= METEO (Open-Meteo) ================= */
+  const timelineEl = $('timeline');
+  const GIORNI = ['dom','lun','mar','mer','gio','ven','sab'];
+
+  function knColor(kn) {
+    if (kn < 5)  return '#5B8FC9';
+    if (kn < 10) return '#2FB39A';
+    if (kn < 15) return '#7CC94A';
+    if (kn < 20) return '#E8D24A';
+    if (kn < 25) return '#F59B23';
+    if (kn < 30) return '#EB5A2D';
+    return '#C13AA0';
+  }
+
+  function buildTimeline(hourly, waveByTime) {
+    timelineEl.innerHTML = '';
+    const times = hourly.time, spd = hourly.wind_speed_10m, dir = hourly.wind_direction_10m;
+    const gst = hourly.wind_gusts_10m || [];
+    const now = Date.now();
+    let lastDay = -1, nowMarked = false;
+
+    for (let i = 0; i < times.length; i += 2) {
+      const t = new Date(times[i]);
+      if (t.getTime() < now - 2 * 3600 * 1000) continue; // salta slot passati
+      // media dello slot di 2 ore
+      const kn = spd[i + 1] != null ? (spd[i] + spd[i + 1]) / 2 : spd[i];
+      const d = dir[i]; // direzione di provenienza a inizio slot
+      if (kn == null || d == null) continue;
+      const g = gst[i + 1] != null ? Math.max(gst[i], gst[i + 1]) : gst[i];
+      const w = waveByTime ? waveByTime[times[i]] : null;
+
+      const slot = document.createElement('div');
+      slot.className = 'tl-slot';
+      if (!nowMarked) { slot.classList.add('now'); nowMarked = true; }
+
+      const dayLbl = t.getDay() !== lastDay
+        ? GIORNI[t.getDay()] + ' ' + t.getDate()
+        : '';
+      lastDay = t.getDay();
+
+      slot.innerHTML =
+        '<div class="tl-day">' + dayLbl + '</div>' +
+        '<div class="tl-hour">' + String(t.getHours()).padStart(2, '0') + '</div>' +
+        '<span class="tl-arrow" style="transform:rotate(' + Math.round(d + 180) + 'deg)">&#8593;</span>' +
+        '<div class="tl-kn" style="color:' + knColor(kn) + '">' + Math.round(kn) + '</div>' +
+        (g != null ? '<div class="tl-gust" style="color:' + knColor(g) + '">' + Math.round(g) + '</div>' : '') +
+        (w != null ? '<div class="tl-wave">' + w.toFixed(1).replace('.', ',') + 'm</div>' : '');
+      slot.title = nomeVento(d) + ' ' + kn.toFixed(0) + ' kn' +
+        (g != null ? ', raffiche ' + Math.round(g) : '') +
+        (w != null ? ', onde ' + w.toFixed(1) + ' m' : '');
+      timelineEl.appendChild(slot);
+    }
+  }
+
   async function fetchWind(lat, lon) {
     const now = Date.now();
     if (now - lastWindFetch < 10 * 60 * 1000) return;
     lastWindFetch = now;
+
+    // onde: endpoint marine separato; se siamo su un lago o fallisce, si ignora
+    let waveByTime = null;
+    const wavePromise = fetch(
+      'https://marine-api.open-meteo.com/v1/marine?latitude=' + lat.toFixed(3) +
+      '&longitude=' + lon.toFixed(3) +
+      '&current=wave_height&hourly=wave_height&forecast_days=3&timezone=auto'
+    ).then(r => r.json()).then(d => {
+      if (d && d.hourly && d.hourly.wave_height) {
+        waveByTime = {};
+        d.hourly.time.forEach((t, i) => { waveByTime[t] = d.hourly.wave_height[i]; });
+      }
+      if (d && d.current && d.current.wave_height != null) waveNow = d.current.wave_height;
+    }).catch(() => {});
+
     try {
       const r = await fetch(
         'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(3) +
         '&longitude=' + lon.toFixed(3) +
-        '&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn'
+        '&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+        '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+        '&forecast_days=3&timezone=auto&wind_speed_unit=kn'
       );
       const d = await r.json();
+      await wavePromise; // aspetta anche le onde (o il loro fallimento silenzioso)
       if (d && d.current) {
         windFrom = d.current.wind_direction_10m;
         windKn = d.current.wind_speed_10m;
+        windGust = d.current.wind_gusts_10m;
         renderWindLabel();
         if (reducedMotion) drawStaticArrows();
       }
+      if (d && d.hourly) buildTimeline(d.hourly, waveByTime);
     } catch (_) {
       windLabel.textContent = 'vento: dati non disponibili offline';
     }
