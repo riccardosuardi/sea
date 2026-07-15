@@ -72,7 +72,7 @@
   }
 
   /* ---------- Background: map + wind particles ---------- */
-  #mapCanvas, #windCanvas {
+  #mapCanvas, #trackCanvas, #windCanvas {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -287,7 +287,7 @@
   /* ---------- Stats ---------- */
   .stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1px;
     background: rgba(94,122,140,.25);
     border-top: 1px solid rgba(94,122,140,.25);
@@ -358,6 +358,7 @@
 <body>
 
 <canvas id="mapCanvas"></canvas>
+<canvas id="trackCanvas"></canvas>
 <canvas id="windCanvas"></canvas>
 <div class="bg-vignette"></div>
 
@@ -416,6 +417,7 @@
   <div class="stat"><b id="maxVal">0.0</b><span>Max</span></div>
   <div class="stat"><b id="avgVal">0.0</b><span>Media</span></div>
   <div class="stat"><b id="hdgVal">---</b><span>Rotta °</span></div>
+  <div class="stat"><b id="distVal">0.0</b><span>NM</span></div>
 </div>
 
 <div class="timeline" id="timeline" aria-label="Previsione vento a slot di 2 ore"></div>
@@ -457,10 +459,95 @@
   const gpsPill = $('gpsPill'), gpsLabel = $('gpsLabel');
   const startBtn = $('startBtn'), resetBtn = $('resetBtn');
   const windLabel = $('windLabel'), accHint = $('accHint');
-  const mapCanvas = $('mapCanvas'), windCanvas = $('windCanvas');
+  const mapCanvas = $('mapCanvas'), windCanvas = $('windCanvas'), trackCanvas = $('trackCanvas');
   const mapCtx = mapCanvas.getContext('2d');
   const windCtx = windCanvas.getContext('2d');
+  const trackCtx = trackCanvas.getContext('2d');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ================= TRACCIA ROTTA (locale) ================= */
+  let track = [];        // [{la, lo}]
+  let trackNm = 0;       // distanza cumulata in miglia nautiche
+  const distVal = $('distVal');
+
+  function loadTrack() {
+    try {
+      const raw = localStorage.getItem('sog-track');
+      if (raw) {
+        track = JSON.parse(raw);
+        trackNm = 0;
+        for (let i = 1; i < track.length; i++) {
+          trackNm += haversine(
+            { latitude: track[i-1].la, longitude: track[i-1].lo },
+            { latitude: track[i].la,   longitude: track[i].lo }
+          ) / 1852;
+        }
+        distVal.textContent = trackNm.toFixed(1);
+      }
+    } catch (_) {}
+  }
+  let savePending = 0;
+  function saveTrack() {
+    savePending++;
+    if (savePending < 5) return; // salva ogni 5 punti
+    savePending = 0;
+    try { localStorage.setItem('sog-track', JSON.stringify(track)); } catch (_) {}
+  }
+  function recordPoint(la, lo) {
+    const last = track[track.length - 1];
+    if (last) {
+      const d = haversine(
+        { latitude: last.la, longitude: last.lo },
+        { latitude: la, longitude: lo }
+      );
+      if (d < 8) return; // ignora sotto gli 8 metri (jitter da fermo)
+      trackNm += d / 1852;
+      distVal.textContent = trackNm.toFixed(1);
+    }
+    track.push({ la: +la.toFixed(6), lo: +lo.toFixed(6) });
+    // limite memoria: oltre 8000 punti, dirada la metà più vecchia
+    if (track.length > 8000) {
+      const half = Math.floor(track.length / 2);
+      track = track.filter((_, i) => i >= half || i % 2 === 0);
+    }
+    saveTrack();
+    drawTrack();
+  }
+
+  // proiezione web-mercator coerente con la mappa
+  const lon2x = lon => (lon + 180) / 360 * Math.pow(2, ZOOM) * TILE;
+  const lat2y = lat => {
+    const r = lat * Math.PI / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, ZOOM) * TILE;
+  };
+
+  function drawTrack() {
+    const W = trackCanvas.width, H = trackCanvas.height;
+    trackCtx.clearRect(0, 0, W, H);
+    if (!mapDrawnAt || track.length < 2) return;
+    const cx0 = lon2x(mapDrawnAt.lon), cy0 = lat2y(mapDrawnAt.lat);
+    const accent = getComputedStyle(document.body).getPropertyValue('--signal').trim() || '#FF5A1F';
+    trackCtx.strokeStyle = accent;
+    trackCtx.lineWidth = 3;
+    trackCtx.lineJoin = 'round';
+    trackCtx.lineCap = 'round';
+    trackCtx.globalAlpha = .9;
+    trackCtx.beginPath();
+    for (let i = 0; i < track.length; i++) {
+      const x = W / 2 + (lon2x(track[i].lo) - cx0);
+      const y = H / 2 + (lat2y(track[i].la) - cy0);
+      i === 0 ? trackCtx.moveTo(x, y) : trackCtx.lineTo(x, y);
+    }
+    trackCtx.stroke();
+    // pallino di partenza
+    const sx = W / 2 + (lon2x(track[0].lo) - cx0);
+    const sy = H / 2 + (lat2y(track[0].la) - cy0);
+    trackCtx.globalAlpha = 1;
+    trackCtx.beginPath();
+    trackCtx.arc(sx, sy, 5, 0, Math.PI * 2);
+    trackCtx.fillStyle = '#EFF6F4';
+    trackCtx.fill();
+  }
 
   const CARDINALI = ['N','NE','E','SE','S','SO','O','NO'];
   const cardinale = deg => CARDINALI[Math.round(deg / 45) % 8];
@@ -536,7 +623,7 @@
   /* ================= CANVAS: dimensioni ================= */
   function sizeCanvases() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    for (const c of [mapCanvas, windCanvas]) {
+    for (const c of [mapCanvas, trackCanvas, windCanvas]) {
       c.width = Math.round(innerWidth * dpr);
       c.height = Math.round(innerHeight * dpr);
     }
@@ -544,6 +631,7 @@
     windCtx.setTransform(1,0,0,1,0,0);
     initParticles();
     if (mapDrawnAt) drawMap(mapDrawnAt.lat, mapDrawnAt.lon, true);
+    drawTrack();
   }
   window.addEventListener('resize', sizeCanvases);
 
@@ -556,6 +644,7 @@
       if (dLat < 0.01 && dLon < 0.01) return;
     }
     mapDrawnAt = { lat, lon };
+    drawTrack();
 
     const n = Math.pow(2, ZOOM);
     const xt = (lon + 180) / 360 * n;
@@ -847,6 +936,7 @@
     }
 
     drawMap(c.latitude, c.longitude, false);
+    if (running && (c.accuracy == null || c.accuracy < 50)) recordPoint(c.latitude, c.longitude);
     fetchWind(c.latitude, c.longitude);
     renderWindLabel();
     speedValue.classList.remove('stale');
@@ -898,6 +988,10 @@
   resetBtn.addEventListener('click', () => {
     maxMs = 0; sumMs = 0; samples = 0; lastMs = 0; lastFix = null;
     lastHeading = null;
+    track = []; trackNm = 0; savePending = 0;
+    distVal.textContent = '0.0';
+    try { localStorage.removeItem('sog-track'); } catch (_) {}
+    drawTrack();
     hdgVal.textContent = '---';
     renderWindLabel();
     render();
@@ -921,6 +1015,7 @@
     tgSog.classList.toggle('on', !orza);
     tgOrza.classList.toggle('on', orza);
     if (mapDrawnAt) drawMap(mapDrawnAt.lat, mapDrawnAt.lon, true); // ridisegna il pin col nuovo colore
+    drawTrack();
     if (reducedMotion) drawStaticArrows();
     try { localStorage.setItem('sog-theme', orza ? 'orza' : 'sog'); } catch (_) {}
   }
@@ -934,6 +1029,7 @@
   } catch (_) {}
 
   sizeCanvases();
+  loadTrack();
   render();
   if (!reducedMotion) animate();
 })();
