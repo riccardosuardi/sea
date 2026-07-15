@@ -721,19 +721,30 @@
         '<div class="tl-kn" style="color:' + knColor(kn) + '">' + Math.round(kn) + '</div>' +
         (g != null ? '<div class="tl-gust" style="color:' + knColor(g) + '">' + Math.round(g) + '</div>' : '') +
         (w != null ? '<div class="tl-wave">' + w.toFixed(1).replace('.', ',') + 'm</div>' : '');
-      slot.addEventListener('click', () => slot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
+      slot.addEventListener('click', () => setPreview(parseInt(slot.dataset.idx, 10)));
       timelineEl.appendChild(slot);
     }
   }
 
-  /* --- selezione slot in base allo scroll (stile Windy) --- */
+  /* --- selezione slot: primo slot visibile a sinistra (o tocco diretto) --- */
+  function buzz() {
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch (_) {}
+  }
+
   function setPreview(idx) {
+    const prevIdx = preview ? slotData.indexOf(preview) : -1;
     const sel = timelineEl.querySelector('.tl-slot.sel');
     if (sel) sel.classList.remove('sel');
     if (idx <= 0 || !slotData[idx]) {
-      if (preview !== null) { preview = null; renderWindLabel(); renderRose(); if (reducedMotion) drawStaticArrows(); }
+      if (preview !== null) {
+        preview = null;
+        renderWindLabel(); renderRose();
+        if (reducedMotion) drawStaticArrows();
+        buzz();
+      }
       return;
     }
+    if (idx !== prevIdx) buzz();
     const el = timelineEl.children[idx];
     if (el) el.classList.add('sel');
     preview = slotData[idx];
@@ -748,11 +759,12 @@
       if (!slotData.length) return;
       // se siamo all'inizio, torna al live
       if (timelineEl.scrollLeft < 20) { setPreview(-1); return; }
-      const center = timelineEl.scrollLeft + timelineEl.clientWidth / 2;
+      // primo slot visibile sul bordo sinistro
+      const x = timelineEl.scrollLeft + 16;
       let idx = -1;
       for (let i = 0; i < timelineEl.children.length; i++) {
         const el = timelineEl.children[i];
-        if (el.offsetLeft <= center && center < el.offsetLeft + el.offsetWidth) { idx = i; break; }
+        if (x < el.offsetLeft + el.offsetWidth) { idx = i; break; }
       }
       if (idx >= 0) setPreview(idx);
     });
