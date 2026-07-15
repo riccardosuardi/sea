@@ -262,6 +262,7 @@
     border-radius: 8px;
   }
   .tl-slot.now { background: rgba(94,122,140,.22); outline: 1px solid rgba(94,122,140,.45); }
+  .tl-slot.sel { background: color-mix(in srgb, var(--signal) 18%, transparent); outline: 1px solid var(--signal); }
   .tl-day {
     font-size: 8px;
     letter-spacing: .08em;
@@ -411,13 +412,13 @@
   <div class="hint" id="accHint"></div>
 </main>
 
-<div class="timeline" id="timeline" aria-label="Previsione vento a slot di 2 ore"></div>
-
 <div class="stats">
   <div class="stat"><b id="maxVal">0.0</b><span>Max</span></div>
   <div class="stat"><b id="avgVal">0.0</b><span>Media</span></div>
   <div class="stat"><b id="hdgVal">---</b><span>Rotta °</span></div>
 </div>
+
+<div class="timeline" id="timeline" aria-label="Previsione vento a slot di 2 ore"></div>
 
 <div class="controls">
   <button id="startBtn">Start</button>
@@ -444,6 +445,11 @@
   let lastHeading = null;
   let lastWindFetch = 0;
   let mapDrawnAt = null; // {lat, lon} dell'ultima mappa disegnata
+  let preview = null;    // slot di previsione selezionato dalla timeline (null = live)
+  let slotData = [];     // dati degli slot della timeline
+
+  const effFrom = () => preview ? preview.dir : windFrom;
+  const effKn   = () => preview ? preview.kn  : windKn;
 
   const $ = id => document.getElementById(id);
   const speedValue = $('speedValue'), unitLabel = $('unitLabel');
@@ -477,15 +483,16 @@
     spokeEls.push(l);
   }
   function renderRose() {
-    if (windFrom == null) return;
-    const oct = Math.round(windFrom / 45) % 8;
+    const f = effFrom();
+    if (f == null) return;
+    const oct = Math.round(f / 45) % 8;
     for (let i = 0; i < 8; i++) {
       spokeEls[i].classList.toggle('active', i === oct);
       const t = $('rn' + i);
       if (t) t.classList.toggle('active', i === oct);
     }
     roseNeedle.setAttribute('visibility', 'visible');
-    roseNeedle.setAttribute('transform', 'rotate(' + Math.round(windFrom) + ' 100 100)');
+    roseNeedle.setAttribute('transform', 'rotate(' + Math.round(f) + ' 100 100)');
   }
 
   function fmt(ms) { return (ms * UNITS[unitIdx].factor).toFixed(1); }
@@ -498,6 +505,19 @@
   }
 
   function renderWindLabel() {
+    if (preview) {
+      const t = preview.t;
+      let txt = '<span style="color:var(--signal)">PREVISIONE ' + GIORNI[t.getDay()] + ' ' +
+        t.getDate() + ' h' + String(t.getHours()).padStart(2, '0') + '</span> · <b>' +
+        nomeVento(preview.dir) + '</b> ' + Math.round(preview.kn) + ' kn' +
+        (preview.gust != null ? ' <small>(raff. ' + Math.round(preview.gust) + ')</small>' : '') +
+        ' · da ' + cardinale(preview.dir);
+      if (preview.wave != null) txt += ' · onde ' + preview.wave.toFixed(1).replace('.', ',') + ' m';
+      windLabel.innerHTML = txt;
+      renderRose();
+      if (reducedMotion) drawStaticArrows();
+      return;
+    }
     if (windFrom == null) return;
     const knTxt = windKn != null ? windKn.toFixed(0) + ' kn' : '';
     let txt = '<b>' + nomeVento(windFrom) + '</b> ' + knTxt +
@@ -599,10 +619,10 @@
     windCtx.fillRect(0, 0, W, H);
     windCtx.globalCompositeOperation = 'source-over';
 
-    if (windFrom != null) {
-      // direzione verso cui soffia il vento (windFrom = provenienza)
-      const toRad = (windFrom + 180) * Math.PI / 180;
-      const spd = 0.4 + (windKn || 5) * 0.14; // px/frame scalati sui nodi
+    if (effFrom() != null) {
+      // direzione verso cui soffia il vento (provenienza + 180)
+      const toRad = (effFrom() + 180) * Math.PI / 180;
+      const spd = 0.4 + (effKn() || 5) * 0.14; // px/frame scalati sui nodi
       const vx = Math.sin(toRad) * spd;
       const vy = -Math.cos(toRad) * spd;
 
@@ -629,8 +649,8 @@
   function drawStaticArrows() {
     const W = windCanvas.width, H = windCanvas.height;
     windCtx.clearRect(0, 0, W, H);
-    if (windFrom == null) return;
-    const toRad = (windFrom + 180) * Math.PI / 180;
+    if (effFrom() == null) return;
+    const toRad = (effFrom() + 180) * Math.PI / 180;
     const step = 90;
     windCtx.strokeStyle = 'rgba(239,246,244,0.5)';
     windCtx.lineWidth = 1.5;
@@ -667,6 +687,7 @@
 
   function buildTimeline(hourly, waveByTime) {
     timelineEl.innerHTML = '';
+    slotData = [];
     const times = hourly.time, spd = hourly.wind_speed_10m, dir = hourly.wind_direction_10m;
     const gst = hourly.wind_gusts_10m || [];
     const now = Date.now();
@@ -684,7 +705,9 @@
 
       const slot = document.createElement('div');
       slot.className = 'tl-slot';
+      slot.dataset.idx = slotData.length;
       if (!nowMarked) { slot.classList.add('now'); nowMarked = true; }
+      slotData.push({ t, kn, dir: d, gust: g != null ? g : null, wave: w != null ? w : null });
 
       const dayLbl = t.getDay() !== lastDay
         ? GIORNI[t.getDay()] + ' ' + t.getDate()
@@ -698,12 +721,42 @@
         '<div class="tl-kn" style="color:' + knColor(kn) + '">' + Math.round(kn) + '</div>' +
         (g != null ? '<div class="tl-gust" style="color:' + knColor(g) + '">' + Math.round(g) + '</div>' : '') +
         (w != null ? '<div class="tl-wave">' + w.toFixed(1).replace('.', ',') + 'm</div>' : '');
-      slot.title = nomeVento(d) + ' ' + kn.toFixed(0) + ' kn' +
-        (g != null ? ', raffiche ' + Math.round(g) : '') +
-        (w != null ? ', onde ' + w.toFixed(1) + ' m' : '');
+      slot.addEventListener('click', () => slot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
       timelineEl.appendChild(slot);
     }
   }
+
+  /* --- selezione slot in base allo scroll (stile Windy) --- */
+  function setPreview(idx) {
+    const sel = timelineEl.querySelector('.tl-slot.sel');
+    if (sel) sel.classList.remove('sel');
+    if (idx <= 0 || !slotData[idx]) {
+      if (preview !== null) { preview = null; renderWindLabel(); renderRose(); if (reducedMotion) drawStaticArrows(); }
+      return;
+    }
+    const el = timelineEl.children[idx];
+    if (el) el.classList.add('sel');
+    preview = slotData[idx];
+    renderWindLabel();
+  }
+
+  let scrollRaf = null;
+  timelineEl.addEventListener('scroll', () => {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = null;
+      if (!slotData.length) return;
+      // se siamo all'inizio, torna al live
+      if (timelineEl.scrollLeft < 20) { setPreview(-1); return; }
+      const center = timelineEl.scrollLeft + timelineEl.clientWidth / 2;
+      let idx = -1;
+      for (let i = 0; i < timelineEl.children.length; i++) {
+        const el = timelineEl.children[i];
+        if (el.offsetLeft <= center && center < el.offsetLeft + el.offsetWidth) { idx = i; break; }
+      }
+      if (idx >= 0) setPreview(idx);
+    });
+  }, { passive: true });
 
   async function fetchWind(lat, lon) {
     const now = Date.now();
